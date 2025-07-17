@@ -7,7 +7,7 @@ import 'build_runner.dart' as br;
 
 // Dart file template
 const tpl =
-    "import 'package:json_annotation/json_annotation.dart';\n%t\npart '%s.g.dart';\n\n@JsonSerializable()\nclass %s {\n  %s();\n\n  %s\n  factory %s.fromJson(Map<String,dynamic> json) => _\$%sFromJson(json);\n  Map<String, dynamic> toJson() => _\$%sToJson(this);\n}\n";
+    "import 'package:json_annotation/json_annotation.dart';\n%t\npart '%s.g.dart';\n\n@JsonSerializable(%p)\nclass %s {\n  %s();\n\n  %s\n  factory %s.fromJson(Map<String,dynamic> json) => _\$%sFromJson(json);\n  Map<String, dynamic> toJson() => _\$%sToJson(this);\n}\n";
 
 void main(List<String> args) {
   String? src;
@@ -112,6 +112,21 @@ bool generateModelClass(
         return;
       }
 
+      //set JsonSerializable params
+      final convertConfigSets = Set<String>();
+      final Map<String, dynamic> converConfig = meta['convert_config'] ?? {};
+      if (converConfig.isNotEmpty) {
+        converConfig.forEach((k, v) {
+          if (k == 'fieldRename') {
+            convertConfigSets.add("$k: FieldRename.$v");
+          } else if (v is String) {
+            convertConfigSets.add("$k: '$v'");
+          } else if (v is bool) {
+            convertConfigSets.add("$k: $v");
+          }
+        });
+      }
+
       //handle imports
       final List imports = (meta['import'] ?? []) as List;
       imports.forEach((e) => importSet.add("import '$e'"));
@@ -172,6 +187,14 @@ bool generateModelClass(
         className,
         className
       ]);
+      
+      // Insert the JsonSerializable configs.
+      if (convertConfigSets.isEmpty) {
+        dist = dist.replaceFirst("%p", "");
+      } else {
+        dist = dist.replaceFirst("%p", convertConfigSets.join(', '));
+      }
+
       // Insert the imports at the head of dart file.
       var _import = importSet.join(";\r\n");
       _import += _import.isEmpty ? "" : ";";
